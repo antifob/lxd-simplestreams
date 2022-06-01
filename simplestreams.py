@@ -38,7 +38,7 @@ def relpath(path):
 
 def parse_items(path):
     if os.path.exists(os.path.join(path, '.items.json')):
-        #print('[>] Reusing existing items ({})'.format(relpath(path)), file=sys.stderr)
+        print('[>] Reusing existing items ({})'.format(relpath(path)), file=sys.stderr)
         with open(os.path.join(path, '.items.json'), 'r') as fp:
             return json.load(fp)
  
