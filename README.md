@@ -3,6 +3,12 @@
 A simple tool to create simplestreams streams for LXD images.
 
 
+## Features
+
+- Supports product-, release- and arch-based `lxd_requirements`.
+- Reuses already-computed SHA256 fingerprints.
+
+
 ## Limitations
 
 - Does not yet support container images.
