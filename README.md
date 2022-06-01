@@ -26,3 +26,12 @@ python3 simplestreams.py
 # generate and write images.json and index.json
 python3 simplestreams.py -w
 ```
+
+Then, simply serve the directory containing `images/` and `streams/`
+using an HTTPS server.
+
+```
+lxc remote add my-remote https://example.com/some-path-maybe
+lxc image ls my-remote:
+lxc launch my-remote:some/alias
+```
