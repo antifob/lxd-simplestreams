@@ -18,7 +18,7 @@ A simple tool to create simplestreams streams for LXD images.
 ## Usage
 
 ```
-# place the image files in its location
+# place the image files in their location
 version=$(TZ= date +%Y%m%d_%H:%M)
 destdir=images/os/version/arch/variant/$version
 

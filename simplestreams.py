@@ -90,7 +90,7 @@ def find_lxd_requirements(path):
         if os.path.exists(f):
             with open(f, 'r') as fp:
                 t = json.load(fp)
-                r = {**r, **t}
+                r = {**t, **r}
         path = os.path.dirname(path)
 
     return r
@@ -196,4 +196,3 @@ def main():
 
 if '__main__' == __name__:
     exit(main())
-
