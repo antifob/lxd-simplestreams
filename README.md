@@ -26,8 +26,9 @@ mkdir -p $destdir
 cp lxd.tar.xz $destdir
 # for virtual machines
 cp disk.qcow2 $destdir
-# for containers (root.squashfs is optional)
+# for containers
 cp root.tar.xz $destdir
+# optional, for when image diffing is supported
 cp root.squashfs $destdir
 
 # generate and print images.json
