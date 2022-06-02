@@ -29,9 +29,9 @@ def sha256(p, h):
         h.update(fp.read())
 
 
-def getfp(path, file):
+def getfp(path):
     h = hashlib.sha256()
-    sha256(os.path.join(path, file), h)
+    sha256(os.path.join(path), h)
     return h.hexdigest()
 
 
@@ -58,31 +58,35 @@ def parse_items(path):
  
     r = {}
 
-    t = {
-        'disk.qcow2': 'disk-kvm.img',
-        'lxd.tar.xz': 'lxd.tar.xz',
-        'root.squashfs': 'root.squashfs',
-        'root.tar.xz': 'root.tar.xz',
+    c = {
+        # filename, ftype, combined inner tag
+        'disk.qcow2': ('disk-kvm.img', 'disk-kvm-img'),
+        'lxd.tar.xz': ('lxd.tar.xz', None),
+        'root.squashfs': ('root.squashfs', 'squashfs'),
+        'root.tar.xz': ('root.tar.xz', 'rootxz'),
     }
 
     g  = glob.glob(os.path.join(path, '*'))
 
     for i in g:
         b = os.path.basename(i)
+        if b not in c:
+            # ignore unknown files
+            continue
         r[b] = {
-            'ftype': t[os.path.basename(i)],
+            'ftype': c[b][0],
             'path': relpath(i),
             'size': os.path.getsize(i),
-            'sha256': getfp(path, b),
+            'sha256': getfp(i),
         }
 
     for i in g:
-        if 'disk.qcow2' == os.path.basename(i):
-           r['lxd.tar.xz']['combined_disk-kvm-img_sha256'] = getcfp(path, 'disk.qcow2')
-        if 'root.squashfs' == os.path.basename(i):
-           r['lxd.tar.xz']['combined_squashfs_sha256'] = getcfp(path, 'root.squashfs')
-        if 'root.tar.xz' == os.path.basename(i):
-           r['lxd.tar.xz']['combined_rootxz_sha256'] = getcfp(path, 'root.tar.xz')
+        b = os.path.basename(i)
+        if b not in c or c[b][1] is None:
+            # ignore unknown files
+            continue
+        t = 'combined_{}_sha256'.format(c[b][1])
+        r['lxd.tar.xz'][t] = getcfp(path, b)
 
     if 'combined_rootxz_sha256' in r['lxd.tar.xz']:
         r['lxd.tar.xz']['combined_sha256'] = r['lxd.tar.xz']['combined_rootxz_sha256']
@@ -177,12 +181,14 @@ def generate_index(images):
 
 
 def write_streams(rootdir, images):
-    os.makedirs(os.path.join(rootdir, 'streams', 'v1'), exist_ok=True)
-    with open(os.path.join(rootdir, 'streams', 'v1', 'images.json'), 'w') as fp:
+    p = os.path.join(rootdir, 'streams', 'v1')
+
+    os.makedirs(p, exist_ok=True)
+    with open(os.path.join(p, 'images.json'), 'w') as fp:
         fp.write(json.dumps(images))
 
     index = generate_index(images)
-    with open(os.path.join(rootdir, 'streams', 'v1', 'index.json'), 'w') as fp:
+    with open(os.path.join(p, 'index.json'), 'w') as fp:
         fp.write(json.dumps(index))
 
 
