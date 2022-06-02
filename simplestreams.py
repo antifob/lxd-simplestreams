@@ -7,6 +7,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import sys
 
 
@@ -45,8 +46,10 @@ def parse_items(path):
     r = {}
 
     t = {
-        'lxd.tar.xz': 'lxd.tar.xz',
         'disk.qcow2': 'disk-kvm.img',
+        'lxd.tar.xz': 'lxd.tar.xz',
+        'root.squashfs': 'root.squashfs',
+        'root.tar.xz': 'root.tar.xz',
     }
 
     g  = glob.glob(os.path.join(path, '*'))
@@ -63,6 +66,13 @@ def parse_items(path):
     for i in g:
         if 'disk.qcow2' == os.path.basename(i):
            r['lxd.tar.xz']['combined_disk-kvm-img_sha256'] = getcfp(path, 'disk.qcow2')
+        if 'root.squashfs' == os.path.basename(i):
+           r['lxd.tar.xz']['combined_squashfs_sha256'] = getcfp(path, 'root.squashfs')
+        if 'root.tar.xz' == os.path.basename(i):
+           r['lxd.tar.xz']['combined_rootxz_sha256'] = getcfp(path, 'root.tar.xz')
+
+    if 'combined_rootxz_sha256' in r['lxd.tar.xz']:
+        r['lxd.tar.xz']['combined_sha256'] = r['lxd.tar.xz']['combined_rootxz_sha256']
 
     with open(os.path.join(path, '.items.json'), 'w') as fp:
         fp.write(json.dumps(r))
@@ -74,7 +84,11 @@ def parse_versions(path):
     r = {}
 
     for v in glob.glob(os.path.join(path, '*')):
-        r[os.path.basename(v)] = {
+        b = os.path.basename(v)
+        if not re.match('^[0-9]{8}_[0-9]{2}:[0-9]{2}$', b):
+            # FIXME will accept dates like '11111111_99:99'
+            continue
+        r[b] = {
             'items': parse_items(v),
         }
 

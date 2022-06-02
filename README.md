@@ -5,13 +5,13 @@ A simple tool to create simplestreams streams for LXD images.
 
 ## Features
 
-- Supports product-, release- and arch-based `lxd_requirements`.
+- Supports LXD containers and VM images.
+- Supports product-, release- and arch-based `lxd_requirements` definitions.
 - Reuses already-computed SHA256 fingerprints.
 
 
 ## Limitations
 
-- Does not yet support container images.
 - Does not yet support image diffs.
 
 
@@ -24,7 +24,11 @@ destdir=images/os/version/arch/variant/$version
 
 mkdir -p $destdir
 cp lxd.tar.xz $destdir
+# for virtual machines
 cp disk.qcow2 $destdir
+# for containers (root.squashfs is optional)
+cp root.tar.xz $destdir
+cp root.squashfs $destdir
 
 # generate and print images.json
 python3 simplestreams.py
