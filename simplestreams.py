@@ -31,7 +31,7 @@ def sha256(p, h):
 
 def getfp(path):
     h = hashlib.sha256()
-    sha256(os.path.join(path), h)
+    sha256(path, h)
     return h.hexdigest()
 
 
