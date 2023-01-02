@@ -35,7 +35,7 @@ cp root.squashfs $destdir
 python3 simplestreams.py
 
 # generate and write images.json and index.json
-python3 simplestreams.py -w
+python3 simplestreams.py -N
 ```
 
 Then, simply serve the directory containing `images/` and `streams/`
