@@ -16,12 +16,24 @@
 # SOFTWARE.
 #
 
+import datetime
 import glob
 import hashlib
 import json
 import os
 import re
+import shutil
 import sys
+import tarfile
+
+
+FILES = {
+    # filename, ftype, combined inner tag
+    'disk.qcow2': ('disk-kvm.img', 'disk-kvm-img'),
+    'lxd.tar.xz': ('lxd.tar.xz', None),
+    'root.squashfs': ('root.squashfs', 'squashfs'),
+    'root.tar.xz': ('root.tar.xz', 'rootxz'),
+}
 
 
 def sha256(p, h):
@@ -58,23 +70,15 @@ def parse_items(path):
  
     r = {}
 
-    c = {
-        # filename, ftype, combined inner tag
-        'disk.qcow2': ('disk-kvm.img', 'disk-kvm-img'),
-        'lxd.tar.xz': ('lxd.tar.xz', None),
-        'root.squashfs': ('root.squashfs', 'squashfs'),
-        'root.tar.xz': ('root.tar.xz', 'rootxz'),
-    }
-
     g  = glob.glob(os.path.join(path, '*'))
 
     for i in g:
         b = os.path.basename(i)
-        if b not in c:
+        if b not in FILES:
             # ignore unknown files
             continue
         r[b] = {
-            'ftype': c[b][0],
+            'ftype': FILES[b][0],
             'path': relpath(i),
             'size': os.path.getsize(i),
             'sha256': getfp(i),
@@ -82,10 +86,10 @@ def parse_items(path):
 
     for i in g:
         b = os.path.basename(i)
-        if b not in c or c[b][1] is None:
+        if b not in FILES or FILES[b][1] is None:
             # ignore unknown files
             continue
-        t = 'combined_{}_sha256'.format(c[b][1])
+        t = 'combined_{}_sha256'.format(FILES[b][1])
         r['lxd.tar.xz'][t] = getcfp(path, b)
 
     if 'combined_rootxz_sha256' in r['lxd.tar.xz']:
@@ -192,39 +196,100 @@ def write_streams(rootdir, images):
         fp.write(json.dumps(index))
 
 
+def make_hier(metadata, root):
+    with tarfile.open(metadata, 'r:xz') as tar:
+        with tar.extractfile('metadata.yaml') as fp:
+            # assuming ascii, feel free to pr
+            md = fp.read().decode()
+
+    # crude parsing to minimize dependencies
+    keys = {
+      'architecture': None,
+      'creation_date': None,
+      'description': None,
+      'os': None,
+      'release': None,
+      'variant': 'default',
+    }
+
+    for ln in md.split('\n'):
+        ln = ln.strip()
+        k = ln.split(':')[0]
+        if k not in keys:
+            continue
+        keys[k] = ln.split(':')[1].strip()
+        if 'architecture' == k:
+            if b'x86_64' == keys[k]:
+                keys[k] = 'amd64'
+
+    for k in keys:
+        if keys[k] is None:
+            raise Exception('{} is not set'.format(k))
+
+    root = os.path.join(root, keys['os'], keys['release'])
+    root = os.path.join(root, keys['architecture'], keys['variant'])
+    ts = datetime.datetime.utcfromtimestamp(int(keys['creation_date']))
+    return os.path.join(root, ts.strftime('%Y%m%d_%H:%M'))
+
+
+def mkdir(p, n):
+    if n is True:
+        print('mkdir {}'.format(p))
+    else:
+        os.makedir(p)
+
+
+def mv(f, t, n):
+    if n is True:
+        print('mv {} {}'.format(f, t))
+    else:
+        shutil.move(f, t)
+
+
 def main():
     import getopt
 
     def usage(fp=sys.stdout):
-        u = '{} [-hw] [rootdir]'
+        u = '{} [-Nh] [-i srcdir] [rootdir]'
         u = u.format(os.path.basename(sys.argv[0]))
         fp.write('usage: {}\n'.format(u))
         fp.flush()
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hw')
+        opts, args = getopt.getopt(sys.argv[1:], 'Nhi:')
     except getopt.GetoptError as e:
         sys.stderr.write('{}\n'.format(e))
         usage(fp=sys.stderr)
         return 1
 
-    o_write = False
+    o_import = None
+    o_nothing = True
     for k, v in opts:
+        if '-N' == k:
+            o_nothing = False
         if '-h' == k:
             usage()
             return 0
-        if '-w' == k:
-            o_write = True
+        if '-i' == k:
+            o_import = v
 
     o_rootdir = os.getcwd()
     if 1 == len(args):
         o_rootdir = args[0]
 
-    i = generate_images(o_rootdir)
-    if o_write:
-        write_streams(o_rootdir, i)
+    if o_import is None:
+        i = generate_images(o_rootdir)
+        if o_nothing is True:
+            print(json.dumps(i))
+        else:
+            write_streams(o_rootdir, i)
     else:
-        print(json.dumps(i))
+        d = make_hier(os.path.join(o_import, 'lxd.tar.xz'), o_rootdir)
+        mkdir(d, o_nothing)
+        for f in glob.glob(os.path.join(o_import, '*')):
+            b = os.path.basename(f)
+            if b in FILES:
+                mv(f, os.path.join(d, b), o_nothing)
 
 
 if '__main__' == __name__:
