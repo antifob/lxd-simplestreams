@@ -236,7 +236,7 @@ def mkdir(p, n):
     if n is True:
         print('mkdir {}'.format(p))
     else:
-        os.makedir(p)
+        os.makedirs(p)
 
 
 def mv(f, t, n):
