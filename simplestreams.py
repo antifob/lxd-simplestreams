@@ -219,7 +219,7 @@ def make_hier(metadata, root):
             continue
         keys[k] = ln.split(':')[1].strip()
         if 'architecture' == k:
-            if b'x86_64' == keys[k]:
+            if 'x86_64' == keys[k]:
                 keys[k] = 'amd64'
 
     for k in keys:
