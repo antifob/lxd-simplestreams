@@ -42,7 +42,7 @@ def sha256(p, h):
             b = fp.read(4096)
             if not b:
                 break
-            h.update(fp.read())
+            h.update(b)
 
 
 def getfp(path):
