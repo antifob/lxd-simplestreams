@@ -38,7 +38,11 @@ FILES = {
 
 def sha256(p, h):
     with open(p, 'rb') as fp:
-        h.update(fp.read())
+        while True:
+            b = fp.read(4096)
+            if not b:
+                break
+            h.update(fp.read())
 
 
 def getfp(path):
