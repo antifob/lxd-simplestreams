@@ -12,7 +12,7 @@ A simple tool to create simplestreams streams for LXD images.
 
 ## Limitations
 
-- Does not yet support image diffs.
+- Does not support image diffs.
 
 
 ## Usage
@@ -59,7 +59,7 @@ Once files have been imported, generate the streams using:
 python3 -N /var/www/html/
 ```
 
-Finally, server the directory containing `images/` and `streams/`
+Finally, serve the directory containing `images/` and `streams/`
 using an HTTP/S server.
 
 ```
