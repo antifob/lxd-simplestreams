@@ -200,6 +200,12 @@ def write_streams(rootdir, images):
         fp.write(json.dumps(index))
 
 
+def unstr(s):
+    if ('"' == s[0] and '"' == s[-1]) or ("'" == s[0] and "'" == s[-1]):
+        return s[1:-1]
+    return s
+
+
 def make_hier(metadata, root):
     with tarfile.open(metadata, 'r:xz') as tar:
         with tar.extractfile('metadata.yaml') as fp:
@@ -221,7 +227,7 @@ def make_hier(metadata, root):
         k = ln.split(':')[0]
         if k not in keys:
             continue
-        keys[k] = ln.split(':')[1].strip()
+        keys[k] = unstr(ln.split(':')[1].strip())
         if 'architecture' == k:
             if 'x86_64' == keys[k]:
                 keys[k] = 'amd64'
