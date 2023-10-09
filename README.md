@@ -1,12 +1,12 @@
-# LXD simplestreams generator
+# Incus simplestreams generator
 
-A simple tool to create simplestreams streams for LXD images.
+A simple tool to create simplestreams streams for Incus or LXD images.
 
 
 ## Features
 
 - Supports containers and VM images.
-- Supports os-, version-, arch- and variant-based `lxd_requirements` definitions.
+- Supports os-, version-, arch- and variant-based `requirements` definitions.
 - Reuses already-computed SHA256 fingerprints.
 
 
@@ -21,7 +21,7 @@ A simple tool to create simplestreams streams for LXD images.
 usage: simplestreams.py [-Nh] [-i srcdir] [rootdir]
 ```
 
-So-called "simplestreams" are basically JSON files describing LXD images
+So-called "simplestreams" are basically JSON files describing Incus images
 and meant to be served over HTTP/S. `simplestreams.py` is meant to
 help you manage the images and indexes.
 
@@ -38,7 +38,7 @@ destdir=/var/www/html/images/os/version/arch/variant/$version
 
 # import files
 mkdir -p $destdir
-cp lxd.tar.xz $destdir
+cp incus.tar.xz $destdir
 # for virtual machines
 cp disk.qcow2 $destdir
 # for containers
@@ -63,26 +63,53 @@ Finally, serve the directory containing `images/` and `streams/`
 using an HTTP/S server.
 
 ```
-lxc remote add my-remote https://example.com/some-path-maybe
-lxc image ls my-remote:
-lxc launch my-remote:some/alias
+incus remote add my-remote https://example.com/some-path-maybe --protocol simplestreams
+incus image ls my-remote:
+incus launch my-remote:some/alias
 ```
 
 ### Requirements
 
-LXD images may have `requirements` properties that specify how LXD
+Incus images may have `requirements` properties that specify how it
 will treat certain images. These properties may be set using
-`simplestreams.py` by dropping a `.lxd_requirements` file into the
+`simplestreams.py` by dropping a `.requirements` file into the
 hierarchy. Any image in a directory or sub-directory where such a file
 is located will be automatically added to the index. For example:
 
 ```
 cd images/windows/
-cat>.lxd_requirements<<__EOF__
+cat>.requirements<<__EOF__
 {
   "secureboot": "false"
 }
 __EOF__
 ```
 
-https://linuxcontainers.org/lxd/docs/latest/image-handling/#special-image-properties
+https://linuxcontainers.org/incus/docs/main/image-handling/#special-image-properties
+
+
+## Supporting Incus or LXD
+
+Incus renamed a few keys when it forked LXD. The main differences are:
+
+- the rename of `lxd.tar.xz` tarballs to `incus.tar.xz`;
+- renaming of the `lxd_requirements` key to `requirements`.
+
+As of writing, there are no differences between `lxd.tar.xz` and
+`incus.tar.xz` files, nor for `lxd_requirements` and `requirements`
+dictionaries. As such, they can be used interchangeably. `simplestreams.py`
+checks for both files and copies over the metadata to make the entries
+usable by both Incus and LXD (`images.linuxcontainers.org` does this too).
+
+In summary, if `incus.tar.xz` and `lxd.tar.xz` exists, both are treated
+individually, but if only one or the other exists, its metadata is copied
+over to the other. For requirements, both files must exist. A symlink can
+be used if both sets are identical.
+
+If you'd like an existing hierarchy to support Incus, simply removing the
+`.items.json` cache files and regenerate the streams.
+
+```
+find /path/to/hier/ -name .items.json -exec rm -f {} \;
+python3 simplestreams.py /path/to/hier/
+```

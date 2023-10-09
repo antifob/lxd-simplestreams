@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2022 Philippe Grégoire <git@pgregoire.xyz>
+# Copyright 2022, 2023 Philippe Grégoire <git@pgregoire.xyz>
 #
 # Permission to use, copy, modify, and/or distribute this software for
 # any purpose with or without fee is hereby granted, provided that the
@@ -31,6 +31,7 @@ FILES = {
     # filename, ftype, combined inner tag
     'disk.qcow2': ('disk-kvm.img', 'disk-kvm-img'),
     'lxd.tar.xz': ('lxd.tar.xz', None),
+    'incus.tar.xz': ('incus.tar.xz', None),
     'root.squashfs': ('root.squashfs', 'squashfs'),
     'root.tar.xz': ('root.tar.xz', 'rootxz'),
 }
@@ -51,9 +52,9 @@ def getfp(path):
     return h.hexdigest()
 
 
-def getcfp(path, file):
+def getcfp(path, meta, file):
     h = hashlib.sha256()
-    sha256(os.path.join(path, 'lxd.tar.xz'), h)
+    sha256(os.path.join(path, meta), h)
     sha256(os.path.join(path, file), h)
     return h.hexdigest()
 
@@ -94,10 +95,22 @@ def parse_items(path):
             # ignore unknown files
             continue
         t = 'combined_{}_sha256'.format(FILES[b][1])
-        r['lxd.tar.xz'][t] = getcfp(path, b)
+        if 'incus.tar.xz' in r:
+            r['incus.tar.xz'][t] = getcfp(path, 'incus.tar.xz', b)
+        if 'lxd.tar.xz' in r:
+            r['lxd.tar.xz'][t] = getcfp(path, 'lxd.tar.xz', b)
+
+    if 'lxd.tar.xz' not in r:
+        r['lxd.tar.xz'] = dict(r['incus.tar.xz'])
+        r['lxd.tar.xz']['ftype'] = 'lxd.tar.xz'
+    elif 'incus.tar.xz' not in r:
+        r['incus.tar.xz'] = dict(r['lxd.tar.xz'])
+        r['incus.tar.xz']['ftype'] = 'incus.tar.xz'
 
     if 'combined_rootxz_sha256' in r['lxd.tar.xz']:
         r['lxd.tar.xz']['combined_sha256'] = r['lxd.tar.xz']['combined_rootxz_sha256']
+    if 'combined_rootxz_sha256' in r['incus.tar.xz']:
+        r['incus.tar.xz']['combined_sha256'] = r['incus.tar.xz']['combined_rootxz_sha256']
 
     with open(os.path.join(path, '.items.json'), 'w') as fp:
         fp.write(json.dumps(r))
@@ -120,12 +133,12 @@ def parse_versions(path):
     return r
 
 
-# Find and merge .lxd_requirements files located in dirs
-def find_lxd_requirements(path):
+# Find and merge .requirements files located in dirs
+def find_requirements(path, fname):
     r = {}
 
     for i in range(4):
-        f = os.path.join(path, '.lxd_requirements')
+        f = os.path.join(path, fname)
         if os.path.exists(f):
             with open(f, 'r') as fp:
                 t = json.load(fp)
@@ -153,7 +166,8 @@ def parse_product(path):
       'release': s[-3],
       'release_title': s[-3],
       'aliases': build_aliases(s[-4], s[-3], s[-1]),
-      'lxd_requirements': find_lxd_requirements(path),
+      'requirements': find_requirements(path, '.requirements'),
+      'lxd_requirements': find_requirements(path, '.lxd_requirements'),
       'versions': parse_versions(path),
     }
 
@@ -294,7 +308,11 @@ def main():
         else:
             write_streams(o_rootdir, i)
     else:
-        d = make_hier(os.path.join(o_import, 'lxd.tar.xz'), o_rootdir)
+        p = os.path.join(o_import, 'incus.tar.xz')
+        if os.path.exists(p):
+            d = make_hier(p, o_rootdir)
+        else:
+            d = make_hier(os.path.join(o_import, 'lxd.tar.xz'), o_rootdir)
         mkdir(d, o_nothing)
         for f in glob.glob(os.path.join(o_import, '*')):
             b = os.path.basename(f)
